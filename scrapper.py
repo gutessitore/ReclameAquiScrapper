@@ -15,8 +15,18 @@ class ReclameAqui:
                  driver_path: str = None,
                  start_page: int = None,
                  max_page: int = None,
-                 headless: bool = True):
+                 headless: bool = False):
+        """
 
+        :param company: company name
+        :param link: link to craw over to,
+        https://www.reclameaqui.com.br/empresa/{company}/lista-reclamacoes/?page={self.start_page} as default
+        :param driver: selenium.webdriver object, webdriver.Chrome as default
+        :param driver_path: path to the webdriver driver
+        :param start_page: page where it will start crawling, default  1
+        :param max_page: page to stop crawling, default 10
+        :param headless: option to run headless, default False
+        """
         default_options = Options()
         if headless:
             default_options.add_argument("--headless")
