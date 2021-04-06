@@ -3,6 +3,7 @@ from selenium import webdriver
 import pandas as pd
 import requests
 import time
+import sys
 
 
 class ReclameAqui:
@@ -13,10 +14,12 @@ class ReclameAqui:
                  driver=None,
                  driver_path: str = None,
                  start_page: int = None,
-                 max_page: int = None):
+                 max_page: int = None,
+                 headless: bool = True):
 
         default_options = Options()
-        default_options.add_argument("--headless")
+        if headless:
+            default_options.add_argument("--headless")
 
         self.company = company
         self.driver = driver or webdriver.Chrome(driver_path, options=default_options)
@@ -24,12 +27,12 @@ class ReclameAqui:
         self.current_page = start_page
         self.link = link or f"https://www.reclameaqui.com.br/empresa/{company}/lista-reclamacoes/?page={self.start_page}"
         self.max_page = max_page or 10
-        self.content = pd.DataFrame()
+        self.reviews = pd.DataFrame()
 
         self.validate_link()
 
     def __len__(self):
-        return len(self.content)
+        return len(self.reviews)
 
     def validate_link(self):
         request = requests.get(self.link)
@@ -45,7 +48,7 @@ class ReclameAqui:
         self.driver.quit()
 
     def accept_cookies(self):
-        time.sleep(2)
+        time.sleep(1)
         self.driver.find_element_by_id("onetrust-accept-btn-handler").click()
 
     def click_next_page(self):
@@ -55,7 +58,7 @@ class ReclameAqui:
 
         action.move_to_element(next_page_button)
         action.click(on_element=next_page_button)
-        time.sleep(0.5)
+        time.sleep(1)
         action.perform()
 
     def find_page_reviews(self):
@@ -70,7 +73,13 @@ class ReclameAqui:
         self.accept_cookies()
 
         reviews = list()
+        load_index = 0
+        characters = ['.', '..', '...']
         while have_content and in_page_range:
+            # Print loading text
+            sys.stdout.write('\rCollecting data ' + characters[0])
+            sys.stdout.flush()
+
             have_content = self.have_reviews()
             in_page_range = self.inside_page_range()
 
@@ -78,18 +87,17 @@ class ReclameAqui:
             reviews.extend([review.text for review in review_elements])
 
             self.click_next_page()
+            characters.append(characters.pop(0))
+            load_index += 1
 
         self.quit_driver()
-        self.content = reviews
+        self.reviews = reviews
 
-    @property
     def get_current_page(self):
         try:
             self.current_page = int(self.driver.current_url.split("=")[-1])
         except:
             self.current_page = 1
-
-        return self.current_page
 
     def inside_page_range(self) -> bool:
         self.get_current_page()
@@ -108,10 +116,14 @@ class ReclameAqui:
     @property
     def to_data_frame(self):
 
-        all_reviews = self.content
+        all_reviews = self.reviews
 
         review_df = pd.DataFrame({"review": all_reviews})
         review_df[["review", "date", "city"]] = review_df.review.str.split("|", expand=True)
         review_df[["review", "status"]] = review_df.review.str.rsplit("\n", 1, expand=True)
+        review_df.dropna(inplace=True)
+        review_df.drop_duplicates(inplace=True)
 
         return review_df
+
+
