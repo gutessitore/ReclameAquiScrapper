@@ -21,5 +21,3 @@ mercado_livre_df = mercado_livre.to_data_frame
 
 print(mercado_livre_df)
 ```
-
-#### ReclameAqui attributes
