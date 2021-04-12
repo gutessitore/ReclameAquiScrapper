@@ -38,6 +38,7 @@ class ReclameAqui:
         self.link = link or f"https://www.reclameaqui.com.br/empresa/{company}/lista-reclamacoes/?page={self.start_page}"
         self.max_page = max_page or 10
         self.reviews = pd.DataFrame()
+        self.links = list()
 
         self.validate_link()
 
@@ -83,15 +84,19 @@ class ReclameAqui:
         self.accept_cookies()
 
         reviews = list()
+        review_link_list = list()
         load_index = 0
         characters = ['.', '..', '...']
         while have_content and in_page_range:
             # Print loading text
-            sys.stdout.write('\rCollecting data ' + characters[0])
+            sys.stdout.write('\r' + str(load_index))
             sys.stdout.flush()
 
             have_content = self.have_reviews()
             in_page_range = self.inside_page_range()
+
+            review_links = self.get_reviews_links()
+            review_link_list.extend([link.get_attribute("href") for link in review_links])
 
             review_elements = self.find_page_reviews()
             reviews.extend([review.text for review in review_elements])
@@ -100,8 +105,11 @@ class ReclameAqui:
             characters.append(characters.pop(0))
             load_index += 1
 
-        self.quit_driver()
+        sys.stdout.write(' ')
+        sys.stdout.flush()
+
         self.reviews = reviews
+        self.links = review_link_list
 
     def get_current_page(self):
         try:
@@ -123,12 +131,13 @@ class ReclameAqui:
         else:
             return True
 
-    @property
     def to_data_frame(self):
 
         all_reviews = self.reviews
+        all_links = self.links
+        # all_tags = self.tags()
 
-        review_df = pd.DataFrame({"review": all_reviews})
+        review_df = pd.DataFrame({"review": all_reviews, "link": all_links})
         review_df[["review", "date", "city"]] = review_df.review.str.split("|", expand=True)
         review_df[["review", "status"]] = review_df.review.str.rsplit("\n", 1, expand=True)
         review_df.dropna(inplace=True)
@@ -136,4 +145,20 @@ class ReclameAqui:
 
         return review_df
 
+    def get_reviews_links(self):
+        return self.driver.find_elements_by_class_name("link-complain-id-complains")
 
+    def tags(self):
+        tag_list = list()
+        idx = 0
+        for link in self.links:
+            sys.stdout.write('\r' + str(idx))
+            sys.stdout.flush()
+            try:
+                self.driver.get(link)
+                tags = self.driver.find_element_by_class_name("tags")
+                tag_list.extend([tags.text])
+            except:
+                tag_list.extend(["No tag"])
+            idx += 1
+        return tag_list
