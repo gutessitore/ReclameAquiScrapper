@@ -138,8 +138,13 @@ class ReclameAqui:
         # all_tags = self.tags()
 
         review_df = pd.DataFrame({"review": all_reviews, "link": all_links})
-        review_df[["review", "date", "city"]] = review_df.review.str.split("|", expand=True)
-        review_df[["review", "status"]] = review_df.review.str.rsplit("\n", 1, expand=True)
+        try:
+            temp_df = pd.DataFrame()
+            temp_df[["review", "date", "city"]] = review_df.review.str.split("|", expand=True)
+            # review_df[["review", "date", "city"]] = review_df.review.str.split("|", expand=True)
+            temp_df[["review", "status"]] = review_df.review.str.rsplit("\n", 1, expand=True)
+        except:
+            pass
         review_df.dropna(inplace=True)
         review_df.drop_duplicates(inplace=True)
 
